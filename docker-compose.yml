@@ -6,19 +6,47 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
-    ports:
-      - "3100:3000"
+    expose:
+      - "3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_SERVER_ROOT_URL=https://${GRAFANA_DOMAIN}
+      - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
     networks:
       - monitoring
+      - traefik-public
+    labels:
+      # Enable Traefik for this service
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      
+      # HTTP router - redirect to HTTPS
+      - traefik.http.routers.grafana-http.rule=Host(`${GRAFANA_DOMAIN}`)
+      - traefik.http.routers.grafana-http.entrypoints=http
+      - traefik.http.routers.grafana-http.middlewares=https-redirect
+      
+      # HTTPS router with Let's Encrypt
+      - traefik.http.routers.grafana-https.rule=Host(`${GRAFANA_DOMAIN}`)
+      - traefik.http.routers.grafana-https.entrypoints=https
+      - traefik.http.routers.grafana-https.tls=true
+      - traefik.http.routers.grafana-https.tls.certresolver=le
+      - traefik.http.routers.grafana-https.service=grafana
+      
+      # Service definition
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
+      
+      # HTTPS redirect middleware
+      - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
     depends_on:
       - prometheus
+    env_file:
+      - .env
 
   # Prometheus - Metrics collection and storage
   prometheus:
@@ -81,6 +109,8 @@ services:
 networks:
   monitoring:
     driver: bridge
+  traefik-public:
+    external: true
 
 volumes:
   grafana-data:

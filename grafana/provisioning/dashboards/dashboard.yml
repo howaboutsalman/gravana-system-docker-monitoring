@@ -1,13 +1,13 @@
 apiVersion: 1
 
+# Dashboard provisioning - empty folder, import dashboards manually
 providers:
-  - name: 'System Monitoring'
+  - name: 'Default'
     orgId: 1
-    folder: 'Monitoring'
+    folder: ''
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10
     allowUiUpdates: true
     options:
       path: /etc/grafana/provisioning/dashboards
-      foldersFromFilesStructure: false
